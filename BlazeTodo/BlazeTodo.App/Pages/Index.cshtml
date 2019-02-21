@@ -1,0 +1,72 @@
+﻿@page "/"
+@using TodoEntities
+@using Newtonsoft.Json
+
+<h1>A Blazor test run: todo app.</h1>
+
+<ol>
+@if(this.Todos != null)
+{
+@foreach(var t in this.Todos)
+{
+    <li>
+        @t.Name
+        <button onclick="@(e => RemoveTodo(t))">Remove</button>
+    </li>
+}
+}
+</ol>
+
+<input type="text" bind="@NewTodoName" placeholder="Task Name" />
+<button onclick="@AddTodo">Add Task</button>
+
+@functions {
+    private List<Todo> Todos { get; set; }
+
+    private string NewTodoName { get; set; }
+
+    protected override async Task OnInitAsync()
+    {
+        await Load();
+        base.OnInit();
+    }
+
+    async void AddTodo()
+    {
+        this.Todos.Add(new Todo() { Name = this.NewTodoName });
+        this.NewTodoName = null;
+        await Save();
+    }
+
+    async Task RemoveTodo(Todo t)
+    {
+        this.Todos.RemoveAt(this.Todos.FindIndex(tt => tt.Name == t.Name));
+        await Save();
+    }
+
+    async Task Load()
+    {
+        List<Todo> todos = await GetTodosFromLocalStorage();
+        if (todos == null)
+            this.Todos = new List<Todo>();
+        else
+            this.Todos = todos;
+    }
+
+    private async Task Save()
+    {
+        var todoStr = Json.Serialize(this.Todos);
+        await JSRuntime.Current.InvokeAsync<string>("SaveTodos", todoStr);
+    }
+
+    private async Task<List<Todo>> GetTodosFromLocalStorage()
+    {
+        var todoStr = await JSRuntime.Current.InvokeAsync<string>("LoadTodos");
+        if(todoStr == null)
+            return null;
+
+        var todos = Json.Deserialize<List<Todo>>(todoStr);
+
+        return todos;
+    }
+}
